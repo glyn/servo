@@ -70,8 +70,13 @@ impl ScriptWindowProxies {
         pipeline_id: PipelineId,
         opener: Option<BrowsingContextId>,
     ) -> Option<DomRoot<WindowProxy>> {
-        let (browsing_context_id, parent_pipeline_id) =
-            self.ask_constellation_for_browsing_context_info(senders, global_to_clone, webview_id, pipeline_id)?;
+        let (browsing_context_id, parent_pipeline_id) = self
+            .ask_constellation_for_browsing_context_info(
+                senders,
+                global_to_clone,
+                webview_id,
+                pipeline_id,
+            )?;
         if let Some(window_proxy) = self.get(browsing_context_id) {
             return Some(window_proxy);
         }

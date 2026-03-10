@@ -3193,8 +3193,7 @@ impl ScriptThread {
         sender_pipeline_id: PipelineId,
         browsing_context_id: BrowsingContextId,
     ) -> Option<WebViewId> {
-        let (result_sender, result_receiver) =
-            self.constellation_response_channel.sub_channel();
+        let (result_sender, result_receiver) = self.constellation_response_channel.sub_channel();
         let msg = ScriptToConstellationMessage::GetTopForBrowsingContext(
             browsing_context_id,
             result_sender,

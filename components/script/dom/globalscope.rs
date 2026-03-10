@@ -810,10 +810,11 @@ impl GlobalScope {
             script_to_constellation_chan,
             constellation_response_channel: ipc_channel_mux::mux::Channel::new()
                 .expect("Failed to create constellation response mux channel"),
-            broadcast_router_channel: ipc_channel_mux::mux::subchannel_router::RouterProxy::new_router_channel(
-                &ipc_channel_mux::mux::subchannel_router::ROUTER,
-            )
-            .expect("Failed to create broadcast router channel"),
+            broadcast_router_channel:
+                ipc_channel_mux::mux::subchannel_router::RouterProxy::new_router_channel(
+                    &ipc_channel_mux::mux::subchannel_router::ROUTER,
+                )
+                .expect("Failed to create broadcast router channel"),
             script_to_embedder_chan,
             in_error_reporting_mode: Default::default(),
             resource_threads,
