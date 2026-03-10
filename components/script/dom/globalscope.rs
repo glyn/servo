@@ -34,7 +34,6 @@ use dom_struct::dom_struct;
 use embedder_traits::{EmbedderMsg, JavaScriptEvaluationError, ScriptToEmbedderChan};
 use fonts::FontContext;
 use indexmap::IndexSet;
-use ipc_channel::ipc::{self};
 use ipc_channel::router::ROUTER;
 use js::glue::{IsWrapper, UnwrapObjectDynamic};
 use js::jsapi::{
@@ -274,6 +273,19 @@ pub(crate) struct GlobalScope {
     #[ignore_malloc_size_of = "channels are hard"]
     #[no_trace]
     script_to_constellation_chan: ScriptToConstellationChan,
+
+    /// Mux channel for receiving one-shot responses from the constellation.
+    /// Multiple concurrent request-response pairs share a single underlying IPC fd.
+    #[ignore_malloc_size_of = "ipc-channel-mux"]
+    #[no_trace]
+    constellation_response_channel: ipc_channel_mux::mux::Channel,
+
+    /// Routed mux channel for async-callback subscriptions (e.g. broadcast channel routers).
+    /// All subchannels created via this channel share a single underlying IPC fd and are
+    /// dispatched by the global mux ROUTER thread rather than blocking the caller.
+    #[ignore_malloc_size_of = "ipc-channel-mux"]
+    #[no_trace]
+    broadcast_router_channel: ipc_channel_mux::mux::subchannel_router::RouterChannel,
 
     /// A handle for communicating messages to the Embedder.
     #[ignore_malloc_size_of = "channels are hard"]
@@ -796,6 +808,12 @@ impl GlobalScope {
             mem_profiler_chan,
             time_profiler_chan,
             script_to_constellation_chan,
+            constellation_response_channel: ipc_channel_mux::mux::Channel::new()
+                .expect("Failed to create constellation response mux channel"),
+            broadcast_router_channel: ipc_channel_mux::mux::subchannel_router::RouterProxy::new_router_channel(
+                &ipc_channel_mux::mux::subchannel_router::ROUTER,
+            )
+            .expect("Failed to create broadcast router channel"),
             script_to_embedder_chan,
             in_error_reporting_mode: Default::default(),
             resource_threads,
@@ -1672,21 +1690,21 @@ impl GlobalScope {
         let mut current_state = self.broadcast_channel_state.borrow_mut();
 
         if let BroadcastChannelState::UnManaged = &*current_state {
-            // Setup a route for IPC, for broadcasts from the constellation to our channels.
-            let (broadcast_control_sender, broadcast_control_receiver) =
-                ipc::channel().expect("ipc channel failure");
+            // Setup a mux subchannel route for broadcasts from the constellation to our channels.
+            // All broadcast routers for this GlobalScope share a single underlying IPC fd via
+            // broadcast_router_channel, dispatched by the global mux ROUTER thread.
             let context = Trusted::new(self);
             let listener = BroadcastListener {
                 task_source: self.task_manager().dom_manipulation_task_source().into(),
                 context,
             };
-            ROUTER.add_typed_route(
-                broadcast_control_receiver,
-                Box::new(move |message| match message {
+            let broadcast_control_sender = self
+                .broadcast_router_channel
+                .add_typed_route(Box::new(move |message| match message {
                     Ok(msg) => listener.handle(msg),
                     Err(err) => warn!("Error receiving a BroadcastChannelMsg: {:?}", err),
-                }),
-            );
+                }))
+                .expect("Failed to add broadcast channel route");
             let router_id = BroadcastChannelRouterId::new();
             *current_state = BroadcastChannelState::Managed(router_id, HashMap::new());
             let _ = self.script_to_constellation_chan().send(
@@ -2490,6 +2508,23 @@ impl GlobalScope {
     /// Get a sender to the constellation thread.
     pub(crate) fn script_to_constellation_chan(&self) -> &ScriptToConstellationChan {
         &self.script_to_constellation_chan
+    }
+
+    /// Create a subchannel for a one-shot request-response with the constellation.
+    /// The returned [`SubSender`] can be embedded in a message variant and sent to the
+    /// constellation; the constellation calls `.send(response)` on it and the caller
+    /// receives the response via the returned [`SubReceiver`].  All subchannels from a
+    /// given `GlobalScope` share a single underlying IPC file descriptor.
+    pub(crate) fn constellation_sub_channel<T>(
+        &self,
+    ) -> (
+        ipc_channel_mux::mux::SubSender<T>,
+        ipc_channel_mux::mux::SubReceiver<T>,
+    )
+    where
+        T: serde::Serialize + for<'de> serde::Deserialize<'de>,
+    {
+        self.constellation_response_channel.sub_channel()
     }
 
     pub(crate) fn script_to_embedder_chan(&self) -> &ScriptToEmbedderChan {

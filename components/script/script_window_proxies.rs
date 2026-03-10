@@ -4,7 +4,6 @@
 
 use base::id::{BrowsingContextId, PipelineId, WebViewId};
 use constellation_traits::ScriptToConstellationMessage;
-use ipc_channel::ipc;
 use rustc_hash::FxBuildHasher;
 use script_bindings::inheritance::Castable;
 use script_bindings::root::{Dom, DomRoot};
@@ -72,7 +71,7 @@ impl ScriptWindowProxies {
         opener: Option<BrowsingContextId>,
     ) -> Option<DomRoot<WindowProxy>> {
         let (browsing_context_id, parent_pipeline_id) =
-            self.ask_constellation_for_browsing_context_info(senders, webview_id, pipeline_id)?;
+            self.ask_constellation_for_browsing_context_info(senders, global_to_clone, webview_id, pipeline_id)?;
         if let Some(window_proxy) = self.get(browsing_context_id) {
             return Some(window_proxy);
         }
@@ -158,10 +157,11 @@ impl ScriptWindowProxies {
     fn ask_constellation_for_browsing_context_info(
         &self,
         senders: &ScriptThreadSenders,
+        global_scope: &GlobalScope,
         webview_id: WebViewId,
         pipeline_id: PipelineId,
     ) -> Option<(BrowsingContextId, Option<PipelineId>)> {
-        let (result_sender, result_receiver) = ipc::channel().unwrap();
+        let (result_sender, result_receiver) = global_scope.constellation_sub_channel();
         let msg = ScriptToConstellationMessage::GetBrowsingContextInfo(pipeline_id, result_sender);
         senders
             .pipeline_to_constellation_sender

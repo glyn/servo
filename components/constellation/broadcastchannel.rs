@@ -6,15 +6,15 @@ use std::collections::HashMap;
 
 use base::id::BroadcastChannelRouterId;
 use constellation_traits::BroadcastChannelMsg;
-use ipc_channel::ipc::IpcSender;
+use ipc_channel_mux::mux::SubSender;
 use log::warn;
 use rustc_hash::FxHashMap;
 use servo_url::ImmutableOrigin;
 
 #[derive(Default)]
 pub(crate) struct BroadcastChannels {
-    /// A map of broadcast routers to their Generic sender.
-    routers: FxHashMap<BroadcastChannelRouterId, IpcSender<BroadcastChannelMsg>>,
+    /// A map of broadcast routers to their mux sub-sender.
+    routers: FxHashMap<BroadcastChannelRouterId, SubSender<BroadcastChannelMsg>>,
 
     /// A map of origin to a map of channel name to a list of relevant routers.
     channels: HashMap<ImmutableOrigin, HashMap<String, Vec<BroadcastChannelRouterId>>>,
@@ -26,7 +26,7 @@ impl BroadcastChannels {
     pub fn new_broadcast_channel_router(
         &mut self,
         router_id: BroadcastChannelRouterId,
-        broadcast_ipc_sender: IpcSender<BroadcastChannelMsg>,
+        broadcast_ipc_sender: SubSender<BroadcastChannelMsg>,
     ) {
         if self
             .routers

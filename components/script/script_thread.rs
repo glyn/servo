@@ -62,7 +62,6 @@ use fonts::{FontContext, SystemFontServiceProxy};
 use headers::{HeaderMapExt, LastModified, ReferrerPolicy as ReferrerPolicyHeader};
 use http::header::REFRESH;
 use hyper_serde::Serde;
-use ipc_channel::ipc;
 use ipc_channel::router::ROUTER;
 use js::glue::GetWindowProxyClass;
 use js::jsapi::{JSContext as UnsafeJSContext, JSTracer};
@@ -377,6 +376,11 @@ pub struct ScriptThread {
     /// A list of URLs that can access privileged internal APIs.
     #[no_trace]
     privileged_urls: Vec<ServoUrl>,
+
+    /// Mux channel for receiving one-shot responses from the constellation in functions
+    /// that do not have access to a `GlobalScope` (e.g. `ask_constellation_for_top_level_info`).
+    #[no_trace]
+    constellation_response_channel: ipc_channel_mux::mux::Channel,
 }
 
 struct BHMExitSignal {
@@ -1004,6 +1008,8 @@ impl ScriptThread {
                 needs_rendering_update: Arc::new(AtomicBool::new(false)),
                 debugger_global: debugger_global.as_traced(),
                 privileged_urls: state.privileged_urls,
+                constellation_response_channel: ipc_channel_mux::mux::Channel::new()
+                    .expect("Failed to create constellation response mux channel"),
                 this: weak_script_thread.clone(),
             }),
             cx,
@@ -3187,7 +3193,8 @@ impl ScriptThread {
         sender_pipeline_id: PipelineId,
         browsing_context_id: BrowsingContextId,
     ) -> Option<WebViewId> {
-        let (result_sender, result_receiver) = ipc::channel().unwrap();
+        let (result_sender, result_receiver) =
+            self.constellation_response_channel.sub_channel();
         let msg = ScriptToConstellationMessage::GetTopForBrowsingContext(
             browsing_context_id,
             result_sender,

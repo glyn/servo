@@ -25,7 +25,7 @@ use encoding_rs::Encoding;
 use euclid::default::Size2D as UntypedSize2D;
 use fonts_traits::SystemFontServiceProxySender;
 use http::{HeaderMap, Method};
-use ipc_channel::ipc::IpcSender;
+use ipc_channel_mux::mux::SubSender;
 use malloc_size_of_derive::MallocSizeOf;
 use net_traits::policy_container::PolicyContainer;
 use net_traits::request::{Destination, InsecureRequestsPolicy, Referrer, RequestBody};
@@ -408,7 +408,7 @@ pub struct AuxiliaryWebViewCreationRequest {
     /// The pipeline opener browsing context.
     pub opener_pipeline_id: PipelineId,
     /// Sender for the constellation’s response to our request.
-    pub response_sender: IpcSender<Option<AuxiliaryWebViewCreationResponse>>,
+    pub response_sender: SubSender<Option<AuxiliaryWebViewCreationResponse>>,
 }
 
 /// Constellation’s response to auxiliary browsing context creation requests.
@@ -576,7 +576,7 @@ pub enum ScriptToConstellationMessage {
     /// A global has started managing broadcast-channels.
     NewBroadcastChannelRouter(
         BroadcastChannelRouterId,
-        IpcSender<BroadcastChannelMsg>,
+        SubSender<BroadcastChannelMsg>,
         ImmutableOrigin,
     ),
     /// A global has stopped managing broadcast-channels.
@@ -621,18 +621,18 @@ pub enum ScriptToConstellationMessage {
     /// Requests the constellation to focus the specified browsing context.
     FocusRemoteDocument(BrowsingContextId),
     /// Get the top-level browsing context info for a given browsing context.
-    GetTopForBrowsingContext(BrowsingContextId, IpcSender<Option<WebViewId>>),
+    GetTopForBrowsingContext(BrowsingContextId, SubSender<Option<WebViewId>>),
     /// Get the browsing context id of the browsing context in which pipeline is
     /// embedded and the parent pipeline id of that browsing context.
     GetBrowsingContextInfo(
         PipelineId,
-        IpcSender<Option<(BrowsingContextId, Option<PipelineId>)>>,
+        SubSender<Option<(BrowsingContextId, Option<PipelineId>)>>,
     ),
     /// Get the nth child browsing context ID for a given browsing context, sorted in tree order.
     GetChildBrowsingContextId(
         BrowsingContextId,
         usize,
-        IpcSender<Option<BrowsingContextId>>,
+        SubSender<Option<BrowsingContextId>>,
     ),
     /// All pending loads are complete, and the `load` event for this pipeline
     /// has been dispatched.
@@ -668,7 +668,7 @@ pub enum ScriptToConstellationMessage {
     JointSessionHistoryLength(GenericSender<u32>),
     /// Notification that this iframe should be removed.
     /// Returns a list of pipelines which were closed.
-    RemoveIFrame(BrowsingContextId, IpcSender<Vec<PipelineId>>),
+    RemoveIFrame(BrowsingContextId, SubSender<Vec<PipelineId>>),
     /// Successful response to [crate::ConstellationControlMsg::SetThrottled].
     SetThrottledComplete(bool),
     /// A load has been requested in an IFrame.
@@ -708,7 +708,7 @@ pub enum ScriptToConstellationMessage {
     ),
     #[cfg(feature = "webgpu")]
     /// Get WebGPU channel
-    GetWebGPUChan(IpcSender<Option<WebGPU>>),
+    GetWebGPUChan(SubSender<Option<WebGPU>>),
     /// Notify the constellation of a pipeline's document's title.
     TitleChanged(PipelineId, String),
     /// Notify the constellation that the size of some `<iframe>`s has changed.

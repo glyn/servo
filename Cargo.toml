@@ -98,6 +98,7 @@ image = { version = "0.25", default-features = false, features = ["avif", "rayon
 imsz = "0.4"
 indexmap = { version = "2.11.4", features = ["std"] }
 ipc-channel = "0.20.2"
+ipc-channel-mux = "0.0.7"
 itertools = "0.14"
 js = { package = "mozjs", version = "=0.14.8", default-features = false, features = ["libz-sys", "intl"] }
 keyboard-types = { version = "0.8.3", features = ["serde", "webdriver"] }

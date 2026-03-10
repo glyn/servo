@@ -19,7 +19,6 @@ use html5ever::{LocalName, Prefix, local_name, ns};
 use js::rust::HandleObject;
 use net_traits::ReferrerPolicy;
 use net_traits::request::Destination;
-use profile_traits::ipc as ProfiledIpc;
 use script_traits::{NewPipelineInfo, UpdatePipelineIdReason};
 use servo_url::ServoUrl;
 use style::attr::{AttrValue, LengthOrPercentageOrAuto};
@@ -669,8 +668,7 @@ impl HTMLIFrameElement {
         // TODO
 
         // Step 5. Destroy a document and its descendants given navigable's active document.
-        let (sender, receiver) =
-            ProfiledIpc::channel(self.global().time_profiler_chan().clone()).unwrap();
+        let (sender, receiver) = self.global().constellation_sub_channel();
         let msg = ScriptToConstellationMessage::RemoveIFrame(browsing_context_id, sender);
         self.owner_window()
             .as_global_scope()

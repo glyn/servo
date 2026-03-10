@@ -17,7 +17,6 @@ use content_security_policy::sandboxing_directive::SandboxingFlagSet;
 use dom_struct::dom_struct;
 use html5ever::local_name;
 use indexmap::map::IndexMap;
-use ipc_channel::ipc;
 use js::JSCLASS_IS_GLOBAL;
 use js::glue::{
     CreateWrapperProxyHandler, DeleteWrapperProxyHandler, GetProxyPrivate, GetProxyReservedSlot,
@@ -305,13 +304,14 @@ impl WindowProxy {
         name: DOMString,
         noopener: bool,
     ) -> Option<DomRoot<WindowProxy>> {
-        let (response_sender, response_receiver) = ipc::channel().unwrap();
         let window = self
             .currently_active
             .get()
             .and_then(ScriptThread::find_document)
             .map(|doc| DomRoot::from_ref(doc.window()))
             .unwrap();
+        let (response_sender, response_receiver) =
+            window.as_global_scope().constellation_sub_channel();
 
         let document = self
             .currently_active
@@ -950,7 +950,8 @@ unsafe fn GetSubframeWindowProxy(
         let script_window_proxies = ScriptThread::window_proxies();
         if let Ok(win) = root_from_handleobject::<Window>(target.handle(), cx) {
             let browsing_context_id = win.window_proxy().browsing_context_id();
-            let (result_sender, result_receiver) = ipc::channel().unwrap();
+            let (result_sender, result_receiver) =
+                win.as_global_scope().constellation_sub_channel();
 
             let _ = win.as_global_scope().script_to_constellation_chan().send(
                 ScriptToConstellationMessage::GetChildBrowsingContextId(
@@ -969,7 +970,7 @@ unsafe fn GetSubframeWindowProxy(
             root_from_handleobject::<DissimilarOriginWindow>(target.handle(), cx)
         {
             let browsing_context_id = win.window_proxy().browsing_context_id();
-            let (result_sender, result_receiver) = ipc::channel().unwrap();
+            let (result_sender, result_receiver) = win.global().constellation_sub_channel();
 
             let _ = win.global().script_to_constellation_chan().send(
                 ScriptToConstellationMessage::GetChildBrowsingContextId(

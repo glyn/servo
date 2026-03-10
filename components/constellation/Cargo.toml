@@ -39,6 +39,7 @@ embedder_traits = { workspace = true }
 euclid = { workspace = true }
 fonts = { path = "../fonts" }
 ipc-channel = { workspace = true }
+ipc-channel-mux = { workspace = true }
 keyboard-types = { workspace = true }
 layout_api = { workspace = true }
 log = { workspace = true }
