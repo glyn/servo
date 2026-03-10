@@ -8,12 +8,16 @@ Purpose: Establish baseline before implementing the migration described in [IPC_
 
 ## Environment notes
 
-- `mach` is not functional in this devcontainer environment: requires Python `toml` module, which has no installer available (`pip`/`pip3` absent). Unit tests were run directly via `cargo`.
-- WPT tests could not be run: `mach test-wpt` blocked by the same issue, and WPT infrastructure requires a configured display server with X11 authorization.
+- `mach` is functional after installing Python dependencies:
+  ```
+  pip install -r python/requirements.txt --break-system-packages
+  pip install -r tests/wpt/tests/tools/wptrunner/requirements.txt --break-system-packages --ignore-installed packaging
+  ```
+- WPT tests could not be run: `mach test-wpt` requires a display server (Xvfb / X11) which is not available in this devcontainer.
 
 ---
 
-## 1. Unit tests (`mach test-unit` → `cargo test --workspace`)
+## 1. Unit tests (`cargo test --workspace`)
 
 **Result: PASS** (with one pre-existing failure)
 
