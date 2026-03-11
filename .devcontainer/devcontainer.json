@@ -6,6 +6,8 @@
 		"dockerfile": "Ubuntu.Dockerfile",
 		"context": ".."
 	},
+	"remoteUser": "ubuntu",
+    "containerUser": "ubuntu",
 
 
 	// Most dependencies are installed in the image, but we run mach bootstrap to ensure
